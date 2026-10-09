@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library Station — issue desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;500;700&family=Karla:wght@400;500;700&family=Spline+Sans+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --room:#D6DCD4;        /* cool shelf-room grey-green */
+  --card:#FBFBF7;
+  --ink:#1B2A2E;
+  --ink-soft:#54666A;
+  --rule:#C3CCC2;
+  --stamp:#5C3D99;       /* date-stamp purple */
+  --shelved:#2F6B4F;
+  --out:#A3392B;
+  --moving:#B8821B;
+  --radius:3px;
+  --mono:"Spline Sans Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --slab:"Zilla Slab",Georgia,serif;
+  --sans:"Karla",-apple-system,Segoe UI,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--room);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.5;
+  background-image:linear-gradient(transparent 27px,rgba(27,42,46,.045) 28px);
+  background-size:100% 28px;
+}
+h1,h2,h3{font-family:var(--slab);font-weight:500;margin:0}
+button{font:inherit;cursor:pointer}
+a{color:var(--stamp)}
+
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+
+/* ---------- masthead ---------- */
+.mast{display:flex;align-items:flex-end;justify-content:space-between;
+  gap:20px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:12px}
+.mast h1{font-size:30px;letter-spacing:-.01em}
+.mast p{margin:2px 0 0;color:var(--ink-soft);font-size:14px}
+.counts{display:flex;gap:22px;font-family:var(--mono);font-size:13px}
+.counts b{display:block;font-family:var(--slab);font-size:26px;font-weight:700;line-height:1}
+.counts span{color:var(--ink-soft)}
+
+/* ---------- layout ---------- */
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);
+  gap:22px;margin-top:24px;align-items:start}
+@media(max-width:880px){.grid{grid-template-columns:1fr}}
+
+.panel{background:var(--card);border:1px solid var(--rule);border-radius:var(--radius);
+  box-shadow:0 1px 0 rgba(27,42,46,.14)}
+.panel>header{display:flex;justify-content:space-between;align-items:baseline;
+  padding:12px 16px;border-bottom:1px solid var(--rule)}
+.panel>header h2{font-size:17px}
+.panel>header small{color:var(--ink-soft);font-family:var(--mono);font-size:12px}
+
+/* ---------- floor plan ---------- */
+.plan{padding:14px 16px 6px}
+svg.floor{width:100%;height:auto;display:block}
+.status{display:flex;gap:10px;align-items:center;padding:10px 16px 14px;
+  border-top:1px dashed var(--rule);margin-top:6px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ink-soft);flex:none}
+.dot.busy{background:var(--moving);animation:pulse 1.1s ease-in-out infinite}
+.dot.idle{background:var(--shelved)}
+.dot.error{background:var(--out)}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.dot.busy{animation:none}}
+.status .txt{font-size:14px}
+.status .txt em{display:block;color:var(--ink-soft);font-style:normal;font-size:13px}
+.bar{height:3px;background:var(--rule);border-radius:2px;overflow:hidden;margin:0 16px 14px}
+.bar i{display:block;height:100%;background:var(--stamp);width:0;transition:width .4s}
+
+/* ---------- catalog cards ---------- */
+.cards{padding:14px 16px;display:grid;gap:12px}
+.bookcard{display:grid;grid-template-columns:58px 1fr auto;gap:14px;align-items:center;
+  padding:12px 14px;border:1px solid var(--rule);border-left:4px solid var(--shelved);
+  border-radius:var(--radius);background:#fff}
+.bookcard[data-s="issued"]{border-left-color:var(--out)}
+.bookcard[data-s="in_transit"]{border-left-color:var(--moving)}
+.code{font-family:var(--mono);font-weight:600;font-size:19px;letter-spacing:.02em}
+.bookcard .t{font-family:var(--slab);font-size:16px;line-height:1.25}
+.bookcard .a{color:var(--ink-soft);font-size:13px}
+.state{font-family:var(--mono);font-size:11.5px;padding:3px 7px;border-radius:2px;
+  border:1px solid currentColor;white-space:nowrap}
+.state.available{color:var(--shelved)}
+.state.issued{color:var(--out)}
+.state.in_transit{color:var(--moving)}
+.due{font-size:12px;color:var(--ink-soft);margin-top:3px}
+.due.late{color:var(--out);font-weight:700}
+.act{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.btn{border:1px solid var(--ink);background:var(--ink);color:#fff;
+  padding:6px 12px;border-radius:2px;font-size:13px}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--stamp);outline-offset:2px}
+
+/* ---------- desk form ---------- */
+.desk{padding:14px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+  border-bottom:1px solid var(--rule)}
+.desk label{font-size:13px;color:var(--ink-soft)}
+select,input{font:inherit;padding:6px 8px;border:1px solid var(--rule);
+  border-radius:2px;background:#fff;color:var(--ink)}
+
+/* ---------- ledger ---------- */
+.ledger{width:100%;border-collapse:collapse;font-size:13.5px}
+.ledger td{padding:7px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+.ledger tr:last-child td{border-bottom:0}
+.ledger .when{font-family:var(--mono);font-size:12px;color:var(--ink-soft);white-space:nowrap}
+.ledger .what{font-family:var(--mono);font-size:12px}
+.ledger .what.issued,.ledger .what.issue_requested{color:var(--out)}
+.ledger .what.returned{color:var(--shelved)}
+.empty{padding:26px 16px;color:var(--ink-soft);font-size:14px}
+
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+  background:var(--ink);color:#fff;padding:11px 18px;border-radius:3px;
+  font-size:14px;max-width:min(560px,90vw);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.toast.bad{background:var(--out)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mast">
+    <div>
+      <h1>Library station</h1>
+      <p>Cupboard&nbsp;1 → drop table → Cupboard&nbsp;2, handled by the youBot.</p>
+    </div>
+    <div class="counts" id="counts"></div>
+  </div>
+
+  <div class="grid">
+
+    <!-- ============ left column ============ -->
+    <div>
+      <section class="panel">
+        <header><h2>Floor</h2><small id="coords">—</small></header>
+        <div class="plan">
+          <svg class="floor" viewBox="0 0 460 620" role="img"
+               aria-label="Plan view of the library floor with the robot's live position">
+            <defs>
+              <marker id="nose" viewBox="0 0 8 8" refX="6" refY="4"
+                      markerWidth="5" markerHeight="5" orient="auto">
+                <path d="M0 0 L8 4 L0 8 z" fill="#5C3D99"/>
+              </marker>
+            </defs>
+            <rect x="1" y="1" width="458" height="618" fill="#EFF2EE"
+                  stroke="#1B2A2E" stroke-width="1.5"/>
+            <g id="statics"></g>
+            <path id="trail" fill="none" stroke="#5C3D99" stroke-width="1.4"
+                  stroke-dasharray="3 4" opacity=".55"/>
+            <g id="bot"></g>
+          </svg>
+        </div>
+        <div class="status">
+          <span class="dot idle" id="dot"></span>
+          <span class="txt"><strong id="st">Waiting for the robot</strong>
+            <em id="stdetail">Run main_system.py to bring it online.</em></span>
+        </div>
+        <div class="bar"><i id="prog"></i></div>
+      </section>
+
+      <section class="panel" style="margin-top:22px">
+        <header><h2>Activity</h2><small id="misline">—</small></header>
+        <table class="ledger"><tbody id="ledger"></tbody></table>
+      </section>
+    </div>
+
+    <!-- ============ right column ============ -->
+    <section class="panel">
+      <header><h2>Catalog</h2><small id="shelfline">—</small></header>
+      <div class="desk">
+        <label for="member">Member</label>
+        <select id="member"></select>
+        <input id="newid" placeholder="New ID" size="9">
+        <input id="newname" placeholder="Name" size="11">
+        <button class="btn ghost" id="addmem">Add member</button>
+      </div>
+      <div class="cards" id="cards"></div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+// ---------------------------------------------------------------- geometry
+// World coords straight out of the CoppeliaSim scene.
+const WORLD = {x0:-3.0, x1:1.6, y0:-2.6, y1:3.4};
+const SVG   = {w:460, h:620, pad:10};
+const sx = (SVG.w - 2*SVG.pad) / (WORLD.x1 - WORLD.x0);
+const sy = (SVG.h - 2*SVG.pad) / (WORLD.y1 - WORLD.y0);
+const S   = Math.min(sx, sy);
+const px = wx => SVG.pad + (wx - WORLD.x0) * S;
+const py = wy => SVG.h - SVG.pad - (wy - WORLD.y0) * S;
+
+const STATICS = [
+  {n:'Cupboard 1', x:-2.20, y:-1.75, w:0.30, h:0.50, fill:'#C9D2C7'},
+  {n:'Cupboard 2', x:-2.33, y: 1.15, w:0.30, h:0.50, fill:'#C9D2C7'},
+  {n:'Drop table', x: 0.55, y:-1.60, w:0.30, h:0.60, fill:'#D9C49F'},
+  {n:'',           x:-0.05, y: 1.08, w:0.10, h:2.00, fill:'#9FAB9E'},
+  {n:'',           x:-0.05, y:-0.45, w:0.10, h:1.00, fill:'#9FAB9E'},
+];
+
+(function drawStatics(){
+  const g = document.getElementById('statics');
+  for(const o of STATICS){
+    const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r.setAttribute('x', px(o.x - o.w/2)); r.setAttribute('y', py(o.y + o.h/2));
+    r.setAttribute('width', o.w*S);       r.setAttribute('height', o.h*S);
+    r.setAttribute('fill', o.fill);       r.setAttribute('stroke','#1B2A2E');
+    r.setAttribute('stroke-width','1');   g.appendChild(r);
+    if(o.n){
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x', px(o.x)); t.setAttribute('y', py(o.y - o.h/2) + 14);
+      t.setAttribute('text-anchor','middle');
+      t.setAttribute('font-size','11'); t.setAttribute('font-family','Karla,sans-serif');
+      t.setAttribute('fill','#54666A'); t.textContent = o.n; g.appendChild(t);
+    }
+  }
+})();
+
+let trail = [];
+function drawBot(p, yaw, holding){
+  const g = document.getElementById('bot');
+  const x = px(p[0]), y = py(p[1]);
+  const len = 0.20*S;
+  g.innerHTML =
+    `<circle cx="${x}" cy="${y}" r="${0.15*S}" fill="#fff" stroke="#5C3D99" stroke-width="2"/>` +
+    `<line x1="${x}" y1="${y}" x2="${x+Math.cos(yaw)*len}" y2="${y-Math.sin(yaw)*len}"
+           stroke="#5C3D99" stroke-width="2" marker-end="url(#nose)"/>` +
+    (holding ? `<text x="${x}" y="${y-0.22*S}" text-anchor="middle" font-size="11"
+       font-family="Spline Sans Mono,monospace" fill="#5C3D99">${holding}</text>` : '');
+
+  const last = trail[trail.length-1];
+  if(!last || Math.hypot(last[0]-x, last[1]-y) > 3) trail.push([x,y]);
+  if(trail.length > 160) trail.shift();
+  document.getElementById('trail').setAttribute(
+    'd', trail.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join(' '));
+}
+
+// ------------------------------------------------------------------- state
+let MEMBERS = [], selected = null, busy = false;
+
+async function api(path, opts){
+  const r = await fetch(path, Object.assign({headers:{'Content-Type':'application/json'}}, opts||{}));
+  if(!r.ok){ throw new Error((await r.json().catch(()=>({detail:r.statusText}))).detail); }
+  return r.json();
+}
+
+function toast(msg, bad){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const d = document.createElement('div');
+  d.className = 'toast' + (bad ? ' bad' : '');
+  d.textContent = msg; document.body.appendChild(d);
+  setTimeout(()=>d.remove(), 4200);
+}
+
+function fmtDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined,{day:'2-digit',month:'short'});
+}
+function fmtTime(iso){
+  if(!iso) return '';
+  return new Date(iso).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+}
+
+const LABEL = {available:'on shelf', issued:'with member', in_transit:'robot fetching'};
+
+function renderBooks(books){
+  const el = document.getElementById('cards');
+  el.innerHTML = '';
+  for(const b of books){
+    const card = document.createElement('div');
+    card.className = 'bookcard'; card.dataset.s = b.status;
+    const mine = selected && b.issued_to === selected;
+    card.innerHTML = `
+      <div class="code">${b.code}</div>
+      <div>
+        <div class="t">${b.title}</div>
+        <div class="a">${b.author || ''}</div>
+        ${b.status !== 'available' && b.due_at
+          ? `<div class="due ${b.overdue?'late':''}">due ${fmtDate(b.due_at)}${b.overdue?' · overdue':''}</div>`
+          : ''}
+      </div>
+      <div class="act">
+        <span class="state ${b.status}">${LABEL[b.status] || b.status}</span>
+      </div>`;
+    const act = card.querySelector('.act');
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    if(b.status === 'available'){
+      btn.textContent = 'Fetch to desk';
+      btn.disabled = busy || !selected;
+      btn.onclick = () => send('/api/issue', b.code, `Robot ${b.code} la raha hai`);
+    } else if(b.status === 'in_transit'){
+      btn.textContent = 'On the way'; btn.disabled = true;
+    } else {
+      btn.textContent = 'Send back';
+      btn.className = 'btn ghost';
+      btn.disabled = busy;
+      btn.onclick = () => send('/api/return', b.code, `${b.code} shelf pe wapas ja rahi hai`);
+    }
+    act.appendChild(btn);
+    if(mine){
+      const m = document.createElement('div');
+      m.style.cssText = 'font-size:12px;color:var(--stamp)';
+      m.textContent = 'yours'; act.appendChild(m);
+    }
+    el.appendChild(card);
+  }
+}
+
+async function send(path, code, okMsg){
+  if(!selected){ toast('Pehle member select karo.', true); return; }
+  try{
+    await api(path, {method:'POST',
+      body: JSON.stringify({book_code: code, member_id: selected})});
+    toast(okMsg);
+    refresh();
+  }catch(e){ toast(e.message, true); }
+}
+
+function renderLedger(logs){
+  const el = document.getElementById('ledger');
+  if(!logs.length){
+    el.innerHTML = '<tr><td class="empty">Abhi tak koi issue ya return nahi hua.</td></tr>';
+    return;
+  }
+  el.innerHTML = logs.map(l => `
+    <tr>
+      <td class="when">${fmtTime(l.ts)}</td>
+      <td class="what ${l.action}">${l.action.replace(/_/g,' ')}</td>
+      <td>${l.book_code || ''} ${l.member_id ? '· ' + l.member_id : ''}
+        ${l.note ? `<span style="color:var(--ink-soft)">— ${l.note}</span>` : ''}</td>
+    </tr>`).join('');
+}
+
+function renderRobot(r){
+  document.getElementById('st').textContent =
+    ({idle:'Idle at the station', driving:'Driving', picking:'Picking a book',
+      placing:'Placing on the table', error:'Needs attention',
+      offline:'Robot offline'})[r.state] || r.state;
+  document.getElementById('stdetail').textContent = r.detail || '';
+  const dot = document.getElementById('dot');
+  dot.className = 'dot ' + (r.state === 'offline' ? '' :
+    r.state === 'error' ? 'error' : r.state === 'idle' ? 'idle' : 'busy');
+  document.getElementById('prog').style.width = ((r.progress || 0) * 100) + '%';
+  const p = r.position || [0,0];
+  document.getElementById('coords').textContent =
+    `x ${(+p[0]).toFixed(2)}  y ${(+p[1]).toFixed(2)}  θ ${(+(r.yaw||0)).toFixed(2)}`;
+  drawBot([+p[0], +p[1]], +(r.yaw || 0), r.holding);
+}
+
+function renderCounts(s){
+  document.getElementById('counts').innerHTML = `
+    <div><b>${s.available}</b><span>on shelf</span></div>
+    <div><b>${s.issued}</b><span>issued</span></div>
+    <div><b>${s.overdue}</b><span>overdue</span></div>
+    <div><b>${s.members}</b><span>members</span></div>`;
+  document.getElementById('shelfline').textContent = `${s.total} titles`;
+}
+
+async function loadMembers(){
+  MEMBERS = await api('/api/members');
+  const sel = document.getElementById('member');
+  sel.innerHTML = '<option value="">— choose —</option>' +
+    MEMBERS.map(m => `<option value="${m.id}">${m.name} (${m.id})</option>`).join('');
+  if(!selected && MEMBERS.length){ selected = MEMBERS[0].id; sel.value = selected; }
+}
+
+document.getElementById('member').onchange = e => { selected = e.target.value; refresh(); };
+
+document.getElementById('addmem').onclick = async () => {
+  const id = document.getElementById('newid').value.trim();
+  const name = document.getElementById('newname').value.trim();
+  if(!id || !name){ toast('ID aur name dono chahiye.', true); return; }
+  try{
+    await api('/api/members', {method:'POST', body: JSON.stringify({id, name, branch:''})});
+    document.getElementById('newid').value = '';
+    document.getElementById('newname').value = '';
+    selected = id;
+    await loadMembers();
+    document.getElementById('member').value = id;
+    toast(`${name} add ho gaya.`);
+    refresh();
+  }catch(e){ toast(e.message, true); }
+};
+
+async function refresh(){
+  try{
+    const d = await api('/api/dashboard');
+    busy = d.missions.some(m => m.status === 'pending' || m.status === 'running');
+    renderCounts(d.stats);
+    renderBooks(d.books);
+    renderLedger(d.logs);
+    renderRobot(d.robot);
+    const run = d.missions.find(m => m.status !== 'done' && m.status !== 'failed');
+    document.getElementById('misline').textContent = run
+      ? `mission #${run.id} · ${run.kind} ${run.book_code} · ${run.status}`
+      : 'queue clear';
+  }catch(e){
+    document.getElementById('stdetail').textContent = 'Backend se connection nahi ho raha.';
+  }
+}
+
+loadMembers().then(refresh);
+setInterval(refresh, 1500);
+</script>
+</body>
+</html>
