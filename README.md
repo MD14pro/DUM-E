@@ -1,5 +1,6 @@
-# DUM-E [DELIVERY, UTILITY, MANAGEMENT AND EXCHANGE:BOOKS]
-🤖 DUM-E Autonomous Library Station (v1.4)
+🤖 DUM-E [DELIVERY, UTILITY, MANAGEMENT AND EXCHANGE: BOOKS]
+
+DUM-E Autonomous Library Station (v1.4)
 
 An End-to-End Autonomous Mobile Manipulator (4-Mecanum Wheel KUKA youBot + 4-DOF Robotic Arm + ESP32-CAM Optical Vision) for Smart Library Book Issue, Return, Student I-Card Authentication & Real-Time Inventory Management.
 
@@ -67,7 +68,7 @@ One-Click Windows Launcher — syncs the 3D scene with library.db and launches t
 
 main_system.py
 
-Unified Orchestrator & CLI (v2.6) — starts the embedded FastAPI server (http://127.0.0.1:8000/), enforces Student I-Card Auth, connects YouBot to CoppeliaSim, and runs the task > CLI.
+Unified Orchestrator & CLI — starts the embedded FastAPI server (http://127.0.0.1:8000/), enforces Student I-Card Auth, connects YouBot to CoppeliaSim, and runs the task > CLI.
 
 robot_controller.py
 
@@ -263,7 +264,7 @@ Python 3.10+ (Windows, Linux, or macOS).
 
 2. Clone the Repository & Install Dependencies
 
-git clone https://github.com/<your-username>/DUM-E-Library-Station.git
+git clone https://github.com/YOUR_USERNAME/DUM-E-Library-Station.git
 cd DUM-E-Library-Station
 pip install -r requirements.txt
 
